@@ -4,14 +4,7 @@ import numpy as np
 import torch.distributions as dist
 import torch.utils.data
 from typing import List, Tuple
-
-DEFAULT_BATCH_SIZE = 256
-
-
-
-DEFAULT_N_SAMPLES = 10  # the number of samples to use for the average reconstruction error
-DEFAULT_LEARNING_RATE = 1e-3
-TINY_NUMBER = 1e-8
+from .constants import *
 
 
 class Encoder(nn.Module):
@@ -126,7 +119,7 @@ class VAEModule(nn.Module):
         self.encoder = Encoder(input_dim, hidden_dims, z_dim)
         self.decoder = Decoder(input_dim, hidden_dims, z_dim)
 
-    def forward(self, input_tensor: torch.Tensor, reconstr_error_weight=10000) -> Tuple[
+    def forward(self, input_tensor: torch.Tensor, reconstr_error_weight) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor]:
         """Perform an encoding and decoding step and return the
         reconstruction error, KL-divergence and negative average elbo for the given batch.
@@ -158,17 +151,13 @@ class VAEModule(nn.Module):
             output_mean, output_std), 1)
 
         # calculating losses
-        # mseloss = nn.MSELoss(reduce=False, size_average=True)
-
         reconstr_error = - distribution.log_prob(input_tensor)
-        #reconstr_error = torch.mean(mseloss(input_tensor, output_mean), dim=1)
-        # print("reconstr_error", reconstr_error.mean())
+        # mseloss = nn.MSELoss(reduce=False, size_average=True)
+        # reconstr_error = torch.mean(mseloss(input_tensor, output_mean), dim=1)
         d = mean.shape[1]
 
         # Calculating the KL divergence of the two independent Gaussians (closed-form solution)
         kl = 0.5 * torch.sum(std - torch.ones(d) - torch.log(std) + mean * mean, dim=1)
-        # print("kl", kl.mean())
-
         average_negative_elbo = torch.mean(reconstr_error_weight * reconstr_error + kl)
         return reconstr_error, kl, average_negative_elbo
 
@@ -207,7 +196,8 @@ class VAE:
     def __init__(self, input_dim: int, hidden_dims: List[int], latent_dim: int,
                  train_data: np.ndarray, val_data: np.ndarray = None,
                  batch_size: int = DEFAULT_BATCH_SIZE,
-                 learning_rate=DEFAULT_LEARNING_RATE, reconstr_error_weight=10000):
+                 learning_rate=DEFAULT_LEARNING_RATE,
+                 reconstr_error_weight=DEFAULT_RECONSTR_ERROR_WEIGHT):
         self.model = VAEModule(input_dim=input_dim, hidden_dims=hidden_dims, z_dim=latent_dim)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate,
                                           weight_decay=0.0)

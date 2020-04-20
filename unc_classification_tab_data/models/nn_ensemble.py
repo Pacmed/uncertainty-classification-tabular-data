@@ -1,5 +1,5 @@
 import torch
-from mlp import MLP
+from .mlp import MLP
 import numpy as np
 
 
@@ -23,8 +23,7 @@ class NNEnsemble:
             self.models[i].eval()
             predictions += [torch.sigmoid(
                 self.models[i](X_test_tensor)).detach().squeeze().numpy()]
-        y_preds_concatenated = np.concatenate(predictions, axis=1)
-        predictions = np.mean(y_preds_concatenated, axis=1)
+        predictions = np.mean(np.array(predictions), axis=0)
         return predictions
 
     def predict_proba(self, X_test):
