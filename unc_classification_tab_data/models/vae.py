@@ -128,6 +128,9 @@ class VAEModule(nn.Module):
         ----------
         input_tensor: torch.Tensor
             The input to the VAE.
+        reconstr_error_weight: float
+            A factor which is multiplied with the reconstruction error, to weigh this term in
+            the overall loss function.
 
         Returns
         -------
@@ -152,8 +155,6 @@ class VAEModule(nn.Module):
 
         # calculating losses
         reconstr_error = - distribution.log_prob(input_tensor)
-        # mseloss = nn.MSELoss(reduce=False, size_average=True)
-        # reconstr_error = torch.mean(mseloss(input_tensor, output_mean), dim=1)
         d = mean.shape[1]
 
         # Calculating the KL divergence of the two independent Gaussians (closed-form solution)
