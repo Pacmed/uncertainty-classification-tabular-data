@@ -16,7 +16,7 @@ class BootstrappedClassifier:
     """
 
     def __init__(self, classifier, n: int, bootstrap_size: int):
-        self.classifiers = [copy.copy(classifier) for i in range(n)]
+        self.classifiers = [copy.deepcopy(classifier) for i in range(n)]
         self.n_bootstraps = n
         self.bootstrap_size = bootstrap_size
 
@@ -52,7 +52,9 @@ class BootstrappedClassifier:
         """
         y_preds = []
         for classifier in self.classifiers:
-            y_preds += [np.expand_dims(classifier.predict_proba(X)[:, 1], 1)]
+            y_preds.append(
+                np.expand_dims(classifier.predict_proba(X)[:, 1], 1)
+            )
         y_preds_concatenated = np.concatenate(y_preds, axis=1)
         mean_predictions = np.mean(y_preds_concatenated, axis=1)
         return np.stack([1 - mean_predictions, mean_predictions], axis=1)
