@@ -4,7 +4,7 @@ import numpy as np
 import torch.nn as nn
 import torch
 from torch.utils.data import Dataset, DataLoader
-from .constants import *
+from .model_constants import *
 
 
 class MLPModule(nn.Module):
@@ -13,27 +13,20 @@ class MLPModule(nn.Module):
 
     Parameters
     ----------
-    model_params : dict
-        (CONSISTS OF)
-        hidden_sizes: list
-            The sizes of the hidden layers.
-        input_size: int
-            The input size.
-        output_size: int
-            The output size.
-        dropout_rate: float
-            The dropout rate applied after each layer (except the output layer)
-        batch_norm: bool
-            Whether to apply batch normalization after each layer.
+    hidden_sizes: list
+        The sizes of the hidden layers.
+    input_size: int
+        The input size.
+    dropout_rate: float
+        The dropout rate applied after each layer (except the output layer)
+    output_size: int
+        The output size.
+    do_batch_norm: bool
+        Whether to apply batch normalization after each layer.
     """
 
-    def __init__(self, model_params: dict):
-        hidden_sizes = model_params.get("hidden_sizes")
-        input_size = model_params.get("input_size")
-        output_size = model_params.get("output_size", DEFAULT_OUTPUT_SIZE)
-        dropout_rate = model_params.get("dropout_rate", DEFAULT_DROPOUT_RATE)
-        do_batch_norm = model_params.get("batch_norm", DEFAULT_BATCH_NORM)
-
+    def __init__(self, hidden_sizes: list, input_size: int, dropout_rate: float,
+                 output_size: int = 1, do_batch_norm: bool = False):
         super(MLPModule, self).__init__()
         layers = []
 
@@ -72,7 +65,7 @@ class MLPModule(nn.Module):
 
 
 class SimpleDataset(Dataset):
-    """Create a new (simple) torch Dataset instance.
+    """Create a new (simple) PyTorch Dataset instance.
 
     Parameters
     ----------
@@ -117,24 +110,23 @@ class MLP:
 
     Parameters
     ----------
-    model_params : dict
-        (CONSISTS OF)
-        hidden_sizes: list
-            The sizes of the hidden layers.
-        input_size: int
-            The input size.
-        output_size: int
-            The output size.
-        dropout_rate: float
-            The dropout rate applied after each layer (except the output layer)
-        batch_norm: bool
-            Whether to apply batch normalization after each layer.
+    hidden_sizes: list
+        The sizes of the hidden layers.
+    input_size: int
+        The input size.
+    output_size: int
+        The output size.
+    dropout_rate: float
+        The dropout rate applied after each layer (except the output layer)
+    batch_norm: bool
+        Whether to apply batch normalization after each layer.
     """
 
-    def __init__(self, model_params: dict):
-        self.model = MLPModule(model_params)
+    def __init__(self, hidden_sizes: list, input_size: int, dropout_rate: float,
+                 class_weight: bool = True, output_size: int = 1, batch_norm: bool = False):
+        self.model = MLPModule(hidden_sizes, input_size, dropout_rate, output_size, batch_norm)
         self.optimizer = torch.optim.Adam(self.model.parameters())
-        self.class_weight = model_params.get("class_weight", DEFAULT_CLASS_WEIGHT_SETTING)
+        self.class_weight = class_weight
 
     def _initialize_dataloader(self, X_train: np.ndarray, y_train: np.ndarray, batch_size: int):
         """Initialize the dataloader of the train data.
@@ -152,13 +144,13 @@ class MLP:
                                   torch.from_numpy(y_train))
         self.train_loader = DataLoader(train_set, batch_size, shuffle=True)
 
-    def get_loss_fn(self, mean_y: float) -> torch.nn.modules.loss.BCEWithLogitsLoss:
+    def get_loss_fn(self, mean_y: torch.Tensor) -> torch.nn.modules.loss.BCEWithLogitsLoss:
         """Obtain the loss function to be used, which is (in case we use class weighting)
         dependent on the class imbalance in the batch.
 
         Parameters
         ----------
-        mean_y: float
+        mean_y: torch.Tensor
             The fraction of positives in the batch.
 
         Returns
@@ -199,12 +191,14 @@ class MLP:
         """
         self.model.eval()
         y_pred = self.model(torch.tensor(X_val).float())
-        loss_fn = self.get_loss_fn(torch.tensor(y_val).float().mean().item())
+        loss_fn = self.get_loss_fn(torch.tensor(y_val).float().mean())
         val_loss = loss_fn(y_pred, torch.tensor(y_val).float().view(-1, 1))
         return val_loss
 
     def train(self, X_train: np.ndarray, y_train: np.ndarray, X_val: np.ndarray, y_val: np.ndarray,
-              training_params: dict):
+              batch_size: int = DEFAULT_BATCH_SIZE, n_epochs: int = DEFAULT_N_EPOCHS,
+              early_stopping: bool = True,
+              early_stopping_patience: int = DEFAULT_EARLY_STOPPING_PAT):
         """Train the MLP.
 
         Parameters
@@ -217,14 +211,15 @@ class MLP:
             The validation data.
         y_val: np.ndarray
             The labels corresponding to the validation data.
-        training_params: dict
-            The hyperparameters used for training.
+        batch_size: int
+            The batch size, default 256
+        n_epochs: int
+            The number of training epochs, default 30
+        early_stopping: bool
+            Whether to perform early stopping, default True
+        early_stopping_patience: int
+            The early stopping patience, default 2.
         """
-        batch_size = training_params.get('batch_size', DEFAULT_BATCH_SIZE)
-        n_epochs = training_params.get('n_epochs', DEFAULT_N_EPOCHS)
-        early_stopping = training_params.get('early_stopping', True)
-        early_stopping_patience = training_params.get('early_stopping_patience',
-                                                      DEFAULT_EARLY_STOPPING_PAT)
 
         self._initialize_dataloader(X_train, y_train, batch_size)
         prev_val_loss = float('inf')
