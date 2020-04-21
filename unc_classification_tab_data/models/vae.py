@@ -69,7 +69,7 @@ class Decoder(nn.Module):
         super().__init__()
         architecture = [z_dim] + hidden_dims
         self.hidden_layers = []
-        if hidden_dims == []:
+        if not hidden_dims:
             self.hidden_layers = []
         else:
             for i in range(len(architecture) - 1):
