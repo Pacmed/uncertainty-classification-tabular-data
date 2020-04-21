@@ -37,9 +37,9 @@ class NNEnsemble:
             The parameters used for training, see class MLP.
         """
         for i in range(self.n_models):
-            mlp = MLP(self.model_params)
+            mlp = MLP(**self.model_params)
             mlp.train(X_train, y_train, X_val, y_val,
-                      training_params)
+                      **training_params)
             self.models[i] = mlp.model
 
     def predict_proba(self, X_test: np.ndarray) -> np.ndarray:
