@@ -59,7 +59,7 @@ class NNEnsemble:
         X_test_tensor = torch.tensor(X_test).float()
         for i in range(self.n_models):
             self.models[i].eval()
-            predictions += [torch.sigmoid(
-                self.models[i](X_test_tensor)).detach().squeeze().numpy()]
+            predictions.append(torch.sigmoid(
+                self.models[i](X_test_tensor)).detach().squeeze().numpy())
         mean_predictions = np.mean(np.array(predictions), axis=0)
         return np.stack([1 - mean_predictions, mean_predictions], axis=1)
