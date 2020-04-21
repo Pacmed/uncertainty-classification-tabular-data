@@ -4,7 +4,7 @@ import numpy as np
 import torch.distributions as dist
 import torch.utils.data
 from typing import List, Tuple
-from .constants import *
+from .model_constants import *
 
 
 class Encoder(nn.Module):
@@ -24,7 +24,7 @@ class Encoder(nn.Module):
         super().__init__()
         architecture = [input_dim] + hidden_dims
         self.hidden_layers = []
-        if hidden_dims == []:
+        if not hidden_dims:
             self.hidden_layers = []
         else:
             for i in range(len(architecture) - 1):
@@ -69,7 +69,7 @@ class Decoder(nn.Module):
         super().__init__()
         architecture = [z_dim] + hidden_dims
         self.hidden_layers = []
-        if hidden_dims == []:
+        if not hidden_dims:
             self.hidden_layers = []
         else:
             for i in range(len(architecture) - 1):
@@ -119,8 +119,9 @@ class VAEModule(nn.Module):
         self.encoder = Encoder(input_dim, hidden_dims, z_dim)
         self.decoder = Decoder(input_dim, hidden_dims, z_dim)
 
-    def forward(self, input_tensor: torch.Tensor, reconstr_error_weight) -> Tuple[
-        torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(
+            self, input_tensor: torch.Tensor, reconstr_error_weight: float
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Perform an encoding and decoding step and return the
         reconstruction error, KL-divergence and negative average elbo for the given batch.
 
@@ -200,8 +201,7 @@ class VAE:
                  learning_rate=DEFAULT_LEARNING_RATE,
                  reconstr_error_weight=DEFAULT_RECONSTR_ERROR_WEIGHT):
         self.model = VAEModule(input_dim=input_dim, hidden_dims=hidden_dims, z_dim=latent_dim)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate,
-                                          weight_decay=0.0)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
         self.reconstr_error_weight = reconstr_error_weight
         self._initialize_dataloaders(train_data, val_data, batch_size)
 
@@ -294,7 +294,8 @@ class VAE:
         self.model.eval()
         reconstructions = []
         for i in range(n_samples):
-            reconstr_error, _, _ = self.model(torch.from_numpy(data))
+            reconstr_error, _, _ = self.model(torch.from_numpy(data),
+                                              reconstr_error_weight=self.reconstr_error_weight)
             reconstructions += [reconstr_error.unsqueeze(0).detach().numpy()]
         concatenated_rec = np.concatenate(reconstructions, axis=0)
         avg_reconstruction_error = np.mean(concatenated_rec, axis=0)
@@ -318,8 +319,8 @@ class VAE:
             The standard deviation of the latent representation for each item in the data.
         """
         self.model.eval()
-        encoding_mean, encoding_std = self.model.encoder(torch.from_numpy(data).unsqueeze(
-            0).float())
+        encoding_mean, encoding_std = self.model.encoder(
+            torch.from_numpy(data).unsqueeze(0).float())
         encoding_mean = encoding_mean.squeeze(0).detach().numpy()
         encoding_std = encoding_std.squeeze(0).detach().numpy()
         return encoding_mean, encoding_std
