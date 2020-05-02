@@ -63,3 +63,24 @@ class NNEnsemble:
                 self.models[i](X_test_tensor)).detach().squeeze().numpy())
         mean_predictions = np.mean(np.array(predictions), axis=0)
         return np.stack([1 - mean_predictions, mean_predictions], axis=1)
+
+    def get_single_predictions(self, X_test: np.ndarray, ensemble_member: int = 0) -> np.ndarray:
+        """Return the probabilities p(y|X) as predicted by a single ensemble member.
+
+        Parameters
+        ----------
+        X_test: np.ndarray
+            The test data.
+        ensemble_member: int
+            The index of the ensemble member.
+
+        Returns
+        -------
+        type:np.ndarray
+            The predicted probabilities.
+        """
+        X_test_tensor = torch.tensor(X_test).float()
+        self.models[ensemble_member].eval()
+        predictions = torch.sigmoid(
+            self.models[ensemble_member](X_test_tensor)).detach().squeeze().numpy()
+        return np.stack([1 - predictions, predictions], axis=1)
