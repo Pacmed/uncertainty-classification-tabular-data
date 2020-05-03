@@ -4,6 +4,45 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from collections import defaultdict
 import itertools
+import unc_classification_tab_data.utils.general_utils as gen_utils
+
+
+class ResultContainer:
+    """Class that handles storing the uncertainties and predictions given to a test set over
+    multiple random seeds.
+    """
+
+    def __init__(self):
+        """The uncertainties and predictions are stored separately in dictionaries, with as keys
+        the method names. """
+        self.uncertainties = defaultdict(list)
+        self.predictions = defaultdict(list)
+
+    def add_results(self, y_pred, name, y_pred_val=None, calibrate=False):
+        """Add results of a single run of a single method.
+
+        Parameters
+        ----------
+        y_pred: np.ndarray
+           The predicted probabilities on the test set.
+        name: str
+            The method name.
+        y_pred_val: np.ndarray, default None
+            The predicted probabilities on the validation set, used for calibration
+        calibrate: bool, default False
+            Whether to calibrate the probabilities (based on the validation data) or not.
+
+       """
+        if not calibrate:
+            # always use entropy for uncertainty
+            self.uncertainties[name].append(gen_utils.entropy(y_pred, axis=1))
+            self.predictions[name].append(y_pred[:, 1])
+        elif calibrate:
+            # platt scale the probabilities
+            y_pred_calibrated = gen_utils.platt_scale(y_pred[:, 1], y_pred_val[:, 1],
+                                                      y_pred_val)
+            self.uncertainties[name].append(gen_utils.entropy(y_pred, axis=1))
+            self.predictions[name].append(y_pred_calibrated)
 
 
 class UncertaintyAnalyzer:
@@ -69,7 +108,7 @@ class UncertaintyAnalyzer:
         if not methods:  # if no methods are specified, plot all.
             methods = self.uncertainty_dict.keys()
         sns.set_palette("Set1", len(methods))
-        marker = itertools.cycle(('X', 'o', '^', 'v', 'd','*', '.'))
+        marker = itertools.cycle(('X', 'o', '^', 'v', 'd', '*', '.'))
         for m in methods:
             x_values = np.array(self.xs[m][metric]) / len(self.y[0])
             met = np.array(self.loss_dict[m][metric])
