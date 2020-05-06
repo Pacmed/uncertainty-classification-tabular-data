@@ -1,7 +1,28 @@
 import pandas as pd
 import numpy as np
+from sklearn.metrics import roc_auc_score
 
 DEFAULT_N_BINS = 10
+
+
+def ood_detection_auc(ood_uncertainties: np.ndarray, test_uncertainties: np.ndarray) -> float:
+    """ Calculate the AUC when using uncertainty to detect OOD.
+
+        Parameters
+        ----------
+        ood_uncertainties: np.ndarray
+            The predicted uncertainties for the OOD samples
+        test_uncertainties: int
+            The predicted uncertainties for the regular test set.
+
+        Returns
+        -------
+        type: float
+            The AUC-ROC score.
+    """
+    all_uncertainties = np.concatenate([ood_uncertainties, test_uncertainties])
+    labels = np.concatenate([np.ones(len(ood_uncertainties)), np.zeros(len(test_uncertainties))])
+    return roc_auc_score(labels, all_uncertainties)
 
 
 def ece(y, y_pred, n_bins=DEFAULT_N_BINS):
