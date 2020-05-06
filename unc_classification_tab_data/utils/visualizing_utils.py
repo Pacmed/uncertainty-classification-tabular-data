@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from collections import defaultdict
 import itertools
-import unc_classification_tab_data.utils.general_utils as gen_utils
+import unc_classification_tab_data.utils.modeling_utils as gen_utils
 
 
 class ResultContainer:
