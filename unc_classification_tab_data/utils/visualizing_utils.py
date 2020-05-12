@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from collections import defaultdict
+from typing import Tuple, Callable, List, DefaultDict, Dict
 import itertools
 import unc_classification_tab_data.utils.modeling_utils as gen_utils
 
@@ -18,7 +19,9 @@ class ResultContainer:
         self.uncertainties = defaultdict(list)
         self.predictions = defaultdict(list)
 
-    def add_results(self, y_pred, name, y_pred_val=None, calibrate=False):
+    def add_results(self, y_pred: np.ndarray, name: str, y_pred_val: np.ndarray = None,
+                    y_val: np.ndarray = None,
+                    calibrate: bool = False):
         """Add results of a single run of a single method.
 
         Parameters
@@ -29,6 +32,8 @@ class ResultContainer:
             The method name.
         y_pred_val: np.ndarray, default None
             The predicted probabilities on the validation set, used for calibration
+        y_val: np.ndarray
+            The true labels of the validation set
         calibrate: bool, default False
             Whether to calibrate the probabilities (based on the validation data) or not.
 
@@ -40,13 +45,18 @@ class ResultContainer:
         elif calibrate:
             # platt scale the probabilities
             y_pred_calibrated = gen_utils.platt_scale(y_pred[:, 1], y_pred_val[:, 1],
-                                                      y_pred_val)
+                                                      y_val)
             self.uncertainties[name].append(gen_utils.entropy(y_pred, axis=1))
             self.predictions[name].append(y_pred_calibrated)
 
 
 class UncertaintyAnalyzer:
-    def __init__(self, y, y_pred_dict, unc_dict, metrics, min_size, step_size):
+    def __init__(self, y: List[np.ndarray],
+                 y_pred_dict: Dict[List[np.ndarray]],
+                 unc_dict: Dict[List[np.ndarray]],
+                 metrics: List[Callable[[np.ndarray, np.ndarray], float]],
+                 min_size: int,
+                 step_size: int):
         """Class that handles analyzing and plotting metrics, when excluding data points based
         on uncertainty. We do this in one class because calculating multiple metrics at once is
         much faster than doing the operations (sorting etc.) one at a time.
@@ -85,8 +95,9 @@ class UncertaintyAnalyzer:
         self.step_size = step_size
         self._calculate_incremental_metrics(metrics)
 
-    def plot_incremental_metric(self, metric, title=None, methods=None, alpha=0.1,
-                                key_mapping=None, legend=True):
+    def plot_incremental_metric(self, metric: str, title: str = None, methods: List[str] = None,
+                                alpha: float = 0.1,
+                                key_mapping: dict = None, legend: bool = True):
         """Plot how a metric changes when adding more uncertain points. Do this for multiple
         methods, such as Bayesian NN and KNN.
 
@@ -102,9 +113,12 @@ class UncertaintyAnalyzer:
             The shade of the standard deviation in the plot.
         key_mapping: dict (optional)
             A dictionary that maps method names to "prettier" names for display in the plot.
+        legend: bool
+            Whether to plot a legend.
         """
 
         sns.set_style('whitegrid')
+        plt.figure(figsize=(5, 5))
         if not methods:  # if no methods are specified, plot all.
             methods = self.uncertainty_dict.keys()
         sns.set_palette("Set1", len(methods))
@@ -126,19 +140,20 @@ class UncertaintyAnalyzer:
         if legend:
             plt.legend()
         if title:
-            plt.title(title)
+            plt.ylabel(title)
         else:
-            plt.title(metric)
+            plt.ylabel(metric)
         plt.tight_layout()
 
-    def _calculate_incremental_metrics(self, metrics):
+    def _calculate_incremental_metrics(self,
+                                       metrics: List[Callable[[np.ndarray, np.ndarray], float]]):
         """Calculate the specified metrics for an increasing number of uncertain points. This to
         be used later in plotting etc. It is done for each method and each specified metric.
         Apart from the mean, the standard deviation over seeds/runs is stored.
 
         Parameters
         ----------
-        metrics: List[function]
+        metrics: List[Callable[[np.ndarray, np.ndarray], float]]
             A list of metrics that we want to calculate. All metrics should take labels and
             probabilities in this order: f(y, y_pred).
         """
@@ -152,8 +167,14 @@ class UncertaintyAnalyzer:
             self.loss_std_dict[key] = score_std
 
 
-def get_incremental_loss(y_test, y_pred, uncertainty,
-                         metrics, min_size, step_size):
+def get_incremental_loss(y_test: List[np.ndarray],
+                         y_pred: List[np.ndarray],
+                         uncertainty: List[np.ndarray],
+                         metrics: List[Callable[[np.ndarray, np.ndarray], float]],
+                         min_size: int,
+                         step_size: int) -> Tuple[DefaultDict[List[int]],
+                                                  DefaultDict[List[float]],
+                                                  DefaultDict[List[float]]]:
     """Parameters
     ----------
     y_test: List[np.ndarray]
@@ -162,7 +183,7 @@ def get_incremental_loss(y_test, y_pred, uncertainty,
         A list of arrays with the predicted probabilities.
     uncertainty: List[np.ndarray]
         A list of arrays with the predicted uncertainties.
-    metrics: List[function]
+    metrics: List[Callable[[np.ndarray, np.ndarray], float]]
         A list of metrics to calculate. All metrics should take labels and
         probabilities in this order: f(y, y_pred).
     min_size: int
@@ -209,3 +230,40 @@ def get_incremental_loss(y_test, y_pred, uncertainty,
         score_std[metric.__name__] = list(np.array(list_of_scores).std(axis=0))
         xs[metric.__name__] = list(range(min_size, len(sorted_df), step_size))
     return xs, score, score_std
+
+
+def barplot_from_nested_dict(nested_dict: dict, nested_std_dict: dict, xlim: Tuple[float, float],
+                             figsize: Tuple[float, float], title: str, save_dir: str,
+                             remove_yticks: bool = False):
+    """Plot and save a grouped barplot from a nested dictionary.
+
+    Parameters
+    ----------
+    nested_dict: dict
+        The data represented in a nested dictionary.
+    nested_std_dict: dict
+        The standard deviations, also in a nested dictionary, to be used as error bars.
+    xlim: Tuple[float, float]
+        The limits on the x-axis to use.
+    figsize: Tuple[float, float]
+        The figure size to use.
+    title: str
+        The title of the plot.
+    save_dir: str
+        Where to save the file.
+    remove_yticks: bool
+        Whether to remove the yticks.
+    """
+    df = pd.DataFrame.from_dict(nested_dict,
+                                orient='index').iloc[::-1]
+    std_df = pd.DataFrame.from_dict(nested_std_dict,
+                                    orient='index').iloc[::-1]
+    sns.set_palette("Set1", 10)
+    sns.set_style('whitegrid')
+    df.plot(kind='barh', alpha=0.9, xerr=std_df, figsize=figsize, fontsize=12,
+            title=title, xlim=xlim)
+    if remove_yticks:
+        plt.yticks([], [])
+    plt.savefig(save_dir, dpi=300,
+                bbox_inches='tight', pad=0)
+    plt.close()
