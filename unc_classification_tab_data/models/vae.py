@@ -296,7 +296,7 @@ class VAE:
         for i in range(n_samples):
             reconstr_error, _, _ = self.model(torch.from_numpy(data),
                                               reconstr_error_weight=self.reconstr_error_weight)
-            reconstructions += [reconstr_error.unsqueeze(0).detach().numpy()]
+            reconstructions.append(reconstr_error.unsqueeze(0).detach().numpy())
         concatenated_rec = np.concatenate(reconstructions, axis=0)
         avg_reconstruction_error = np.mean(concatenated_rec, axis=0)
         return avg_reconstruction_error
