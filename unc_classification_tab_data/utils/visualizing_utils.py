@@ -52,8 +52,8 @@ class ResultContainer:
 
 class UncertaintyAnalyzer:
     def __init__(self, y: List[np.ndarray],
-                 y_pred_dict: Dict[List[np.ndarray]],
-                 unc_dict: Dict[List[np.ndarray]],
+                 y_pred_dict: DefaultDict,
+                 unc_dict: DefaultDict,
                  metrics: List[Callable[[np.ndarray, np.ndarray], float]],
                  min_size: int,
                  step_size: int):
@@ -172,9 +172,9 @@ def get_incremental_loss(y_test: List[np.ndarray],
                          uncertainty: List[np.ndarray],
                          metrics: List[Callable[[np.ndarray, np.ndarray], float]],
                          min_size: int,
-                         step_size: int) -> Tuple[DefaultDict[List[int]],
-                                                  DefaultDict[List[float]],
-                                                  DefaultDict[List[float]]]:
+                         step_size: int) -> Tuple[DefaultDict,
+                                                  DefaultDict,
+                                                  DefaultDict]:
     """Parameters
     ----------
     y_test: List[np.ndarray]
@@ -221,9 +221,9 @@ def get_incremental_loss(y_test: List[np.ndarray],
             sorted_df = df.sort_values(by='uncertainty')
             for i in range(min_size, len(sorted_df), step_size):
                 temp = sorted_df[:i]
-                temp_score += [metric(temp['y'], temp['y_pred'])]
-                temp_xs += [i]
-            list_of_scores += [np.array(temp_score)]
+                temp_score.append(metric(temp['y'], temp['y_pred']))
+                temp_xs.append(i)
+            list_of_scores.append(np.array(temp_score))
 
         # save mean and standard deviation of the metrics in a dictionary.
         score[metric.__name__] = list(np.array(list_of_scores).mean(axis=0))
@@ -258,6 +258,7 @@ def barplot_from_nested_dict(nested_dict: dict, nested_std_dict: dict, xlim: Tup
                                 orient='index').iloc[::-1]
     std_df = pd.DataFrame.from_dict(nested_std_dict,
                                     orient='index').iloc[::-1]
+    # (inverted indexing [::-1] is just because the legend fits better this way)
     sns.set_palette("Set1", 10)
     sns.set_style('whitegrid')
     df.plot(kind='barh', alpha=0.9, xerr=std_df, figsize=figsize, fontsize=12,

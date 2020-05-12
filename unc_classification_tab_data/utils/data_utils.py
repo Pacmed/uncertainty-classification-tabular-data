@@ -1,6 +1,6 @@
 import pandas as pd
 import os
-from typing import Tuple, Optional
+from typing import Tuple, Union
 
 # the default folder of the processed data
 PROCESSED_FOLDER = "/data/processed/benchmark/inhospitalmortality"
@@ -33,7 +33,7 @@ def load_data(dir_name: str = PROCESSED_FOLDER) -> Tuple[pd.DataFrame, pd.DataFr
     Parameters
     ----------
     dir_name: str
-        The directory with the data, default "/data/processed/benchmark/inhospitalmortality"
+        The directory with the data, default stored in PROCESSED_FOLDER
 
     Returns
     -------
@@ -54,7 +54,7 @@ def load_data(dir_name: str = PROCESSED_FOLDER) -> Tuple[pd.DataFrame, pd.DataFr
     return train_data, val_data, test_data
 
 
-def split_by_ood_name(df: pd.DataFrame, ood_name: str, ood_value: Optional[int, str, bool]) -> \
+def split_by_ood_name(df: pd.DataFrame, ood_name: str, ood_value: Union[int, str, bool]) -> \
         Tuple[pd.DataFrame, pd.DataFrame]:
     """Split a dataframe by OOD column name and corresponding OOD value.
 
@@ -64,7 +64,7 @@ def split_by_ood_name(df: pd.DataFrame, ood_name: str, ood_value: Optional[int, 
         The dataframe to split.
     ood_name: str
         The OOD column name
-    ood_value: str
+    ood_value: Union[int, str, bool]
 
 
     Returns
