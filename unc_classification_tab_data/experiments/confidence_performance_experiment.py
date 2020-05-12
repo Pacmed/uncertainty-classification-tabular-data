@@ -151,7 +151,7 @@ if __name__ == '__main__':
     step_size = int(len(X_test) / 10)  # steps of 10% of the data
 
     # which methods we want to plot
-    methods = ['NN ensemble', 'Bootstrapped LR', 'Single NN', 'Single LR']#, 'VAE']
+    methods = ['NN ensemble', 'Bootstrapped LR', 'Single NN', 'Single LR', 'VAE']
 
     # Make confidence-performance plots for both experiments and all metrics.
     for cw, rh in [('class_weight_', class_weight_results),
@@ -168,7 +168,7 @@ if __name__ == '__main__':
         for metric_pretty_name, metric in metrics_to_use.items():
             analyzer.plot_incremental_metric(metric.__name__, methods=methods,
                                              title=metric_pretty_name)
-            plt.savefig(os.path.join('plots', cw + metric.__name__ + "AA.png"),
+            plt.savefig(os.path.join('plots', cw + metric.__name__ + ".png"),
                         dpi=300,
                         bbox_inches='tight',
                         pad_inches=0)
